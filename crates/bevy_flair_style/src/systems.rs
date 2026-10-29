@@ -492,6 +492,14 @@ pub(crate) fn recalculate_style_on_related_entities_changes(
             to_be_marked.insert(entity);
         }
 
+        // Inline declarations are not selector inputs. Re-resolve this entity's
+        // values, but leave relational matching alone unless selector data or a
+        // pending selector recalculation also changed. Variable and inherited
+        // value propagation is handled by the later style/value systems.
+        if !style_data.is_changed() && !marker.needs_calculate_style() {
+            continue;
+        }
+
         let flags = flags.recalculate_on_change_flags.load();
 
         if flags.contains(RecalculateOnChangeFlags::RECALCULATE_SIBLINGS) {
@@ -878,6 +886,10 @@ pub(crate) fn sync_em_size(
         em_size.set_if_neq(new_em_size);
     }
 }
+
+#[cfg(test)]
+#[path = "systems/related_changes_tests.rs"]
+mod related_changes_tests;
 
 #[cfg(test)]
 mod tests {
