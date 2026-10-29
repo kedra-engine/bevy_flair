@@ -2,6 +2,8 @@
 
 mod element;
 mod error;
+#[cfg(all(test, not(miri)))]
+mod subject_tests;
 
 #[cfg(test)]
 pub(crate) mod testing;
@@ -466,6 +468,17 @@ impl CssSelector {
     }
 
     pub(crate) fn matches_selector<E: Element<Impl = CssSelectorImpl>>(&self, element: &E) -> bool {
+        // SelectorIter stops at the first combinator. Only mandatory keys on
+        // this subject may reject it before an expensive relational pseudo-class;
+        // ancestor/sibling keys and nested alternatives are not subject tests.
+        use selectors::{attr::CaseSensitivity, parser::Component};
+        if !self.selector.iter().all(|component| match component {
+            Component::Class(name) => element.has_class(name, CaseSensitivity::CaseSensitive),
+            Component::ID(name) => element.has_id(name, CaseSensitivity::CaseSensitive),
+            _ => true,
+        }) {
+            return false;
+        }
         let mut selector_caches = SelectorCaches::default();
         let mut matching_context = MatchingContext::new(
             MatchingMode::Normal,
